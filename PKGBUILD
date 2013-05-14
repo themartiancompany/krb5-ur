@@ -2,7 +2,7 @@
 
 pkgname=krb5
 pkgver=1.11.2
-pkgrel=2
+pkgrel=3
 pkgdesc="The Kerberos network authentication system"
 arch=('i686' 'x86_64')
 url="http://web.mit.edu/kerberos/"
@@ -41,6 +41,7 @@ build() {
    export CFLAGS+=" -fPIC -fno-strict-aliasing -fstack-protector-all"
    export CPPFLAGS+=" -I/usr/include/et"
    ./configure --prefix=/usr \
+               --sbindir=/usr/bin \
                --sysconfdir=/etc \
                --mandir=/usr/share/man \
                --localstatedir=/var/lib \
