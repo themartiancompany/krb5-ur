@@ -134,11 +134,11 @@ prepare() {
   sed \
     "s%/usr/local%${_usr}%g" \
     -i \
-    "src/config-file/kdc.conf"
+    "src/config-files/kdc.conf"
   sed \
     -i \
     "s%= 88%= 1088%g" \
-    "src/config-file/kdc.conf"
+    "src/config-files/kdc.conf"
   if [[ "${_os}" == "Android" ]]; then
   	cp \
       "${srcdir}/netbsd_getpass.c" \
