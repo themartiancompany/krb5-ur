@@ -132,12 +132,12 @@ prepare() {
     "/KRB5ROOT=/s/\/local//" \
     "src/util/ac_check_${_pkg}.m4"
   sed \
+    "s%/usr/local%${_usr}%g" \
     -i \
-    "%/usr/local%${_usr}%g" \
     "src/config-file/kdc.conf"
   sed \
     -i \
-    "%= 88%= 1088%g" \
+    "s%= 88%= 1088%g" \
     "src/config-file/kdc.conf"
   if [[ "${_os}" == "Android" ]]; then
   	cp \
