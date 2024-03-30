@@ -12,12 +12,16 @@ _os="$( \
 [[ "${_os}" == "Android" ]] && \
   _system_verto="false" && \
   _system_etss="false"
-pkgname=krb5
+_pkg=krb5
+pkgbase="${_pkg}"
+pkgname=(
+  "${pkgbase}"
+)
 _pkgvermajor=1.21
 pkgver=1.21.2
 pkgrel=2
 pkgdesc='The Kerberos network authentication system'
-url='https://web.mit.edu/kerberos/'
+url='https://web.mit.edu/kerberos'
 arch=(
   'x86_64'
   'arm'
@@ -37,6 +41,11 @@ depends=(
   libss.so
   libcom_err.so
 )
+[[ "${_os}" == "Android" ]] && \
+  depends+=(
+    'libresolv-wrapper'
+  )
+
 [[ "${_system_verto}" == "true" ]] && \
   depends+=(
     'libverto-module-base'
@@ -46,7 +55,7 @@ makedepends=(
   'perl'
 )
 provides=(
-  libgssapi_krb5.so
+  "libgssapi_${_pkg}.so"
   libgssrpc.so
   libk5crypto.so
   libkadm5clnt_mit.so
@@ -54,23 +63,24 @@ provides=(
   libkdb5.so
   libkdb_ldap.so
   libkrad.so
-  libkrb5.so
-  libkrb5support.so
+  "lib${_pkg}.so"
+  "lib${_pkg}support.so"
 )
 backup=(
-  'etc/krb5.conf'
-  'var/lib/krb5kdc/kdc.conf'
+  "etc/${_pkg}.conf"
+  "var/lib/${_pkg}kdc/kdc.conf"
 )
 options=(
   '!emptydirs'
 )
 source=(
-  https://web.mit.edu/kerberos/dist/krb5/${_pkgvermajor}/${pkgname}-${pkgver}.tar.gz{,.asc}
-  krb5-kadmind.service
-  krb5-kdc.service
-  krb5-kpropd.service
-  krb5-kpropd@.service
-  krb5-kpropd.socket)
+  "${url}/dist/${_pkg}/${_pkgvermajor}/${_pkg}-${pkgver}.tar.gz"{"",".asc"}
+  "${_pkg}-kadmind.service"
+  "${_pkg}-kdc.service"
+  "${_pkg}-kpropd.service"
+  "${_pkg}-kpropd@.service"
+  "${_pkg}-kpropd.socket"
+)
 sha512sums=(
   '4e09296b412383d53872661718dbfaa90201e0d85f69db48e57a8d4bd73c95a90c7ec7b6f0f325f6bc967f8d203b256b071c0191facf080aca0e2caec5d0ac49'
   'SKIP'
@@ -80,23 +90,89 @@ sha512sums=(
   'a31ed42e988fed892dd3f1ca1942c3cd4bf391d894c9cebe5e91f52797392261e129727590ae06e2f727bb7b0f8d73a7aa35e8b983d6bad77f22a099091ee944'
   '4e7ae175425e0787a1d5ff959471a88bf5af4cd6e213dc6d4048902fab7547c1186a082370b523f9549f5096acfab1fb03b4839e42bd80dc539130ae4bb3ea55'
 )
+[[ "${_os}" == "Android" ]] && \
+  source+=(
+    "lib-${_pkg}-os-dnsglue.c.patch"
+    "netbsd_getpass.c"
+    "plugins-kdb-db2.patch"
+  ) && \
+  sha512sums+=(
+    "a222aec81c9b4230caa68bc0f9731dbaa01de8a7b63804def6a7f5253c5ef03f65f372cf147dad9c49d69b17c922558442b117ca3a4deec728a76654c29a0d53"
+    "1459ae4a9d084864ca0f6d7f92fe8db66cbf14a31c1116ea5c58b087c4bc5c6aa04ec484e66e7424047c0a3d48c461e0ec3844486ce00fc23249e3630c6eaf0d"
+    "e936b9c2b5f11998a0e205826fb2b1958b1d52208cb9f1558a3dbdbf7d251905d0563e8c5698f7ec8b215afef7a59acd6b12f88bc4d649f82901582615d6e7f2"
+  )
 validpgpkeys=(
-  '2C732B1C0DBEF678AB3AF606A32F17FD0055C305'  # Tom Yu <tlyu@mit.edu>
-  'C4493CB739F4A89F9852CBC20CBA08575F8372DF') # Greg Hudson <ghudson@mit.edu>
+  # Tom Yu <tlyu@mit.edu>
+  '2C732B1C0DBEF678AB3AF606A32F17FD0055C305'  
+  # Greg Hudson <ghudson@mit.edu>
+  'C4493CB739F4A89F9852CBC20CBA08575F8372DF'
+  )
+
+_bin="$( \
+  dirname \
+    "$( \
+      command \
+        -v \
+	"cc" \
+	"gcc" | \
+      head \
+        -n \
+	1)")"
+
+_usr="$( \
+  dirname \
+    "${_bin}")"
 
 prepare() {
   cd \
-    ${pkgname}-${pkgver}
+    "${pkgname}-${pkgver}"
   # FS#25384
   sed \
     -i \
     "/KRB5ROOT=/s/\/local//" \
-    src/util/ac_check_krb5.m4
+    "src/util/ac_check_${_pkg}.m4"
+  sed \
+    -i \
+    "%/usr/local%${_usr}%g" \
+    "src/config-file/kdc.conf"
+  sed \
+    -i \
+    "%= 88%= 1088%g" \
+    "src/config-file/kdc.conf"
+  if [[ "${_os}" == "Android" ]]; then
+  	cp \
+      "${srcdir}/netbsd_getpass.c" \
+      "src/clients/kpasswd"
+    cd \
+      "src"
+    patch \
+      -p1 < \
+      "${srcdir}/lib-${_pkg}-os-dnsglue.c.patch"
+     patch \
+      -p1 < \
+      "${srcdir}/plugins-kdb-db2.patch"
+  fi
 }
 
 build() {
   local \
-    _configure_opts=()
+    _configure_opts=() \
+    _verto="with" \
+    _cppflags=() \
+    _cflags=() \
+    _ldflags=()
+  _cppflags=(
+    "${CPPFLAGS}"
+  )
+  _cflags=(
+    "${CFLAGS}"
+    "-fPIC"
+    "-fno-strict-aliasing"
+    "-fstack-protector-all"
+  )
+  _ldflags=(
+    "${LDFLAGS}"
+  )
   _configure_opts=(
     --prefix=/usr
     --sbindir=/usr/bin
@@ -108,23 +184,39 @@ build() {
     --enable-dns-for-realm
     --with-ldap
   )
-  [[ "${_system_verto}" == "true" ]] && \
-    _configure_opts+=(
-      --with-system-verto
-    )
+  [[ "${_system_verto}" == "false" ]] && \
+    _verto+="out"
+   _configure_opts+=(
+    --"${_verto}-system-verto"
+  )
   [[ "${_system_etss}" == "true" ]] && \
     _configure_opts+=(
       --with-system-et
       --with-system-ss
+    ) && \
+    _cppflags+=(
+      "-I/usr/include/et"
+    )
+  [[ "${_os}" == "Android" ]] && \
+    _configure_opts+=(
+      --disable-thread-support
+    ) && \
+    _cflags+=(
+      -D_PASSWORD_LEN=PASS_MAX
+    ) && \
+   _ldflags+=(
+      -lresolv_wrapper
    )
   cd \
     ${pkgname}-${pkgver}/src
-  export \
-    CFLAGS+=" -fPIC -fno-strict-aliasing -fstack-protector-all"
-  export \
-    CPPFLAGS+=" -I/usr/include/et"
+  CPPFLAGS="${_cppflags[*]}" \
+  CFLAGS="${_cflags[*]}" \
+  LDFLAGS="${_ldflags[*]}" \
   ./configure \
     "${_configure_opts[@]}"
+  CPPFLAGS="${_cppflags[*]}" \
+  CFLAGS="${_cflags[*]}" \
+  LDFLAGS="${_ldflags[*]}" \
   make
 }
 
@@ -145,17 +237,17 @@ package() {
 
    install \
      -Dpm 644 \
-     config-files/krb5.conf \
+     "config-files/${_pkg}.conf" \
      -t \
      "${pkgdir}/etc"
    install \
      -Dpm 644 \
-     config-files/kdc.conf \
+     "config-files/kdc.conf" \
      -t \
-     "${pkgdir}/var/lib/krb5kdc"
+     "${pkgdir}/var/lib/${_pkg}kdc"
    install \
      -Dm 644 \
-     util/ac_check_krb5.m4 \
+     "util/ac_check_${_pkg}.m4" \
      -t \
      "${pkgdir}/usr/share/aclocal"
    install \
@@ -165,7 +257,7 @@ package() {
    # systemd stuff
    install \
      -Dm 644 \
-     "${srcdir}"/krb5-{kadmind.service,kdc.service,kpropd.service,kpropd@.service,kpropd.socket} \
+     "${srcdir}/${_pkg}-"{kadmind.service,kdc.service,kpropd.service,kpropd@.service,kpropd.socket} \
       -t \
       "${pkgdir}/usr/lib/systemd/system"
 }
