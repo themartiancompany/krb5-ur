@@ -148,9 +148,9 @@ prepare() {
     patch \
       -p1 < \
       "${srcdir}/lib-${_pkg}-os-dnsglue.c.patch"
-     patch \
-      -p1 < \
-      "${srcdir}/plugins-kdb-db2.patch"
+     # patch \
+     #  -p1 < \
+     #  "${srcdir}/plugins-kdb-db2.patch"
   fi
 }
 
